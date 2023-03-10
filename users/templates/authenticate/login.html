@@ -1,0 +1,34 @@
+{% extends 'posApp/base.html' %}
+{% block body %}
+
+
+<h3>Sign In</h3>
+<h4>Please login to your account</h4>
+
+<form class="form-login" method="post" >
+  <label>Email</label>
+  <div class="form-addons">
+      <input type="text" placeholder="Enter your email address" name="email">
+     
+  </div>
+
+  <div class="form-login">
+      <label>Password</label>
+      <div class="pass-group">
+          <input type="password" class="pass-input" placeholder="Enter your password" name="password">
+          <span class="fas toggle-password fa-eye-slash"></span>
+      </div>
+  </div>
+
+  <div class="form-login">
+      <div class="alreadyuser">
+          <h4><a href="{% url 'forgot_password' %}" class="hover-a">Forgot Password?</a></h4>
+      </div>
+  </div>
+
+  <div class="form-login">
+      <button class="btn btn-login" type="submit">Sign In</button>
+  </div>
+  {% csrf_token %}
+</form>
+{% endblock %}

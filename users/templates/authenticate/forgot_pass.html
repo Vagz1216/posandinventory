@@ -1,0 +1,22 @@
+{% extends 'posApp/base.html' %}
+{% block body %}
+
+
+<h3>Forgot password?</h3>
+<h4>Don’t warry! it happens. Please enter the address
+    associated with your account.</h4>
+
+<form class="form-login" method="post" >
+  <label>Email</label>
+  <div class="form-addons">
+      <input type="email" placeholder="Enter your email address" name="email">
+     
+  </div>
+
+
+  <div class="form-login">
+      <button class="btn btn-login" type="submit">Submit</button>
+  </div>
+  {% csrf_token %}
+</form>
+{% endblock %}

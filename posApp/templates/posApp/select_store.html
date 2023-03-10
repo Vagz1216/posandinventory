@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Select Store</title>
+    <style>
+        body {
+            background-color: #FAFBFE;
+        }
+        .store-list {
+            border: 2px solid #FE9F43;
+            border-radius: 10px;
+            background-color: #FFFFFF;
+            padding: 10px;
+            margin: auto;
+            width: 30%;
+            text-align: center;
+
+        }
+        .store-name {
+            color: #FE9F43;
+            font-weight: bold;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="store-list">
+        <form method="POST">
+        {% csrf_token %}
+        {% for store in stores %}
+            <span>
+                <input type="radio" name="store_id" value="{{ store.id }}" id="store{{ store.id }}">
+                <label for="store{{ store.id }}">{{ store.name }}</label>
+            </span>
+        {% endfor %}
+        <br>
+        <button type="submit">Select Store</button>
+        </form>
+    </div>
+</body>
+</html>
