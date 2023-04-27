@@ -324,10 +324,8 @@ class Purchase(models.Model):
     ref_no = models.UUIDField(default=uuid.uuid4, editable=False)
     purchase_returned = models.PositiveIntegerField(default=0)
 
-
     def price_with_currency(self):
         return f"{self.store.currency.symbol_left}{self.price}"
-
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
