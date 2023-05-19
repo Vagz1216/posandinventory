@@ -1,0 +1,100 @@
+
+{% extends "posApp/abase.html" %}
+{% load static %}
+from django.utils import timezone
+
+<!-- Page title  -->
+{% block title %}Add Customer{% endblock title %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}
+
+
+{% endblock stylesheets %}
+
+<!-- Page Heading -->
+{% block heading %}Add customer{% endblock heading %}
+
+<!-- Page content  -->
+{% block content %}
+<!--Go back-->
+<div class="row ml-0 mb-3">
+    <a href="{% url 'index' %}">
+        <button type="button" class="btn btn-info font-weight-bold">
+            <i class="fas fa-long-arrow-alt-left mr-2"></i>
+            Go back
+        </button>
+    </a>
+</div>
+
+<div class="row">
+    <div class="card col-md-12">
+        <div class="card-body">
+            <form action="{% url 'add_customer' %}"  method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label for="inputDescription">Name</label>
+                        <input type="text" class="form-control" name="name" placeholder="Name" required>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="dob">Date of Birth</label>
+                        <input type="date" class="form-control" name="dob" required>
+                    </div>
+
+                    <div class="form-group col-md-4">
+                        <label for="customer_email">Email Address</label>
+                        <input type="email" class="form-control" name="customer_email" placeholder="Enter your email address" required>
+                    </div>
+                    
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label for="inputMobile">Mobile Number</label>
+                        <input type="tel" class="form-control" name="customer_mobile" placeholder="Enter your mobile number" pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}" required>
+                        <small class="form-text text-muted">Format: 123-456-7890</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="gender">Gender</label>
+                        <select class="form-control" name="customer_sex" required>
+                            <option value="">Select gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                  
+                    
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-8">
+                        <label for="customer_address">Address</label>
+                        <input type="text" class="form-control" name="customer_address" placeholder="Enter your address: street, city, county, country" required>
+                    </div>
+                    
+                   
+                    
+                </div>
+
+                <div class="form-row">
+               
+
+                
+                
+
+                <button type="submit" class="btn btn-success font-weight-bold">Add Customer</button>
+               
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+
+{% block javascripts %}
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-touchspin/4.3.0/jquery.bootstrap-touchspin.min.js"></script>
+{% endblock javascripts %}

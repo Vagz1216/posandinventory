@@ -1,5 +1,5 @@
-from datetime import timedelta
 from django.utils import timezone
+from datetime import datetime, timedelta
 from django.db.models import Sum
 from posApp.models import Purchase
 from django.contrib.auth.decorators import login_required
@@ -20,6 +20,8 @@ from io import BytesIO
 from django.http import HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
+from decimal import Decimal
+
 # Create your views here.
 
 
@@ -67,6 +69,29 @@ def index(request):
             category_count = category.count()
             customers= Customer.objects.filter(store=store)
             customer_count= customers.count()
+            ranked_products = sorted(products, key=lambda p: p.stock - p.alert_quantity)[:5]
+            # Calculate the total sales for the last 30 days
+            today = timezone.now()
+            thirty_days_ago = today - timedelta(days=30)
+            sales = Sale.objects.filter(store=store, date_added__gte=thirty_days_ago)
+            total_sales = sum(Decimal(sale.grand_total-sale.tax_amount) for sale in sales)
+
+
+             # Calculate the total purchase for the last 30 
+             
+            today = timezone.now()
+            thirty_days_ago = today - timedelta(days=30)
+            purchases = Purchase.objects.filter(store=store, date__gte=thirty_days_ago)
+            total_purchases = sum(purchase.price*purchase.quantity for purchase in purchases)
+
+             # Calculate the total purchase for the last 30 
+             
+            current_month_profits = total_sales-total_purchases
+            
+
+
+
+            
 
 
         except Store.DoesNotExist:
@@ -82,12 +107,13 @@ def index(request):
             if store:
                 products = Product.objects.filter(store=store)
                 suppliers = Supplier.objects.filter(store=store)
+                
             else:
                 messages.warning(request, 'You have not been assigned a store. Please contact an administrator.')
                 return redirect('login_view')
 
     # Render the index page with the store, products, and suppliers
-    context = {'store': store, 'products': products, 'suppliers':suppliers,  'customer_count': customer_count, 'supplier_count': supplier_count, 'brand_count':brand_count, 'category_count':category_count}
+    context = {'store': store, 'products': products, 'suppliers':suppliers,'sales':sales, 'total_sales': total_sales , 'total_purchases': total_purchases, 'current_month_profits': current_month_profits, 'customer_count': customer_count, 'supplier_count': supplier_count, 'brand_count':brand_count, 'category_count':category_count, "ranked_products": ranked_products}
     return render(request, 'posApp/index.html', context)
 
 def add_product(request):
@@ -203,11 +229,15 @@ def pos(request):
         except Store.DoesNotExist:
             messages.warning(request, 'Invalid store ID in session. Please select a store.')
             return redirect('select_store')
+        
+        
+
 
         context = {
         
         "customers": [c.to_select2() for c in Customer.objects.all()],
-        'store':store
+        "store":store,
+   
     }
 
     if request.method == 'POST':
@@ -348,7 +378,9 @@ def SalesListView(request):
     store = Store.objects.get(id=store_id)
     context = {
         # "active_icon": "sales",
-        "sales": Sale.objects.filter(store=store)
+        "sales": Sale.objects.filter(store=store),
+        "salesdetails": SaleDetail.objects.filter(store=store)
+        
     }
     return render(request, "posApp/sales.html", context=context)
 
@@ -361,6 +393,7 @@ def SalesDetailsView(request, sale_id):
     if sale_id:
         # Get tthe sale
         sale = Sale.objects.get(id=sale_id)
+      
 
         # Get the sale details
         details = SaleDetail.objects.filter(sale=sale)
@@ -412,6 +445,371 @@ def ReceiptPDFView(request, sale_id):
     pdf_file.close()
 
     return response
+
+
+
+#Inventory 
+
+def inventory(request):
+    store_id = request.session.get('store_id')
+    if store_id:
+        try:
+            store = Store.objects.get(id=store_id)
+            products= Product.objects.filter(store=store)
+        except Store.DoesNotExist:
+            messages.warning(request, 'Invalid store ID in session. Please select a store.')
+            return redirect('select_store')
+
+        context = {
+        
+        "products": products
+     
+    }
+    return render (request, "posApp/inventory.html",context)
+
+
+
+
+@login_required
+def ProductsAddView(request):
+    # Check if store ID is in session
+    store_id = request.session.get('store_id')
+    store = Store.objects.get(id=store_id)
+  
+
+    
+
+
+    context = {
+
+        "product_status": Product.status.field.choices,
+        "categories": Category.objects.all().filter(status="ACTIVE"),
+        'products' : Product.objects.filter(store=store),
+        'suppliers': Supplier.objects.filter(store=store), 
+        'brands': Brand.objects.filter(store=store),
+        'taxrates': TaxRate.objects.all()  
+
+
+  
+    }
+    
+
+    if request.method == 'POST':
+        # Save the POST arguements
+        data = request.POST
+        image = request.FILES['product_image'] 
+
+        attributes = {
+            "name": data['name'],
+            "code": data['code'],
+            "category": Category.objects.get(id=data['category']),
+            "supplier": Supplier.objects.get(id=data['supplier']),
+            "brand" : Brand.objects.get(id=data['brand']),
+            "image":image,
+            "description": data['description'],
+            "price": data['price'],
+            "taxrate": TaxRate.objects.get(id=data['taxrate']),
+            "alert_quantity": data['alert_quantity'],
+            "status": data['state'],
+            "store": Store.objects.get(id=store_id),
+
+
+
+         
+        }
+
+        # Check if a product with the same attributes exists
+        if Product.objects.filter(**attributes).exists():
+            messages.error(request, 'Product already exists!',
+                           extra_tags="warning")
+            return redirect('products_add')
+
+        try:
+            # Create the product
+            new_product = Product.objects.create(**attributes)
+
+            # If it doesn't exists save it
+            new_product.save()
+
+            messages.success(request, 'Product: ' +
+                             attributes["name"] + ' created succesfully!', extra_tags="success")
+            return redirect('products_list')
+        except Exception as e:
+            messages.success(
+                request, 'There was an error during the creation!', extra_tags="danger")
+            print(e)
+            return redirect('products_add')
+
+    return render(request, "posApp/products_add.html", context=context)
+
+
+
+def ProductsListView(request):
+    # Check if store ID is in session
+    store_id = request.session.get('store_id')
+    store = Store.objects.get(id=store_id)
+  
+    context = {
+
+        "products": Product.objects.filter(store=store)
+        }
+    return render(request, "posApp/product_list.html", context=context)
+
+
+
+def ProductsUpdateView(request, product_id):
+     # Check if store ID is in session
+    store_id = request.session.get('store_id')
+    store = Store.objects.get(id=store_id)
+    """
+    parameter:
+        product_id : The product's to be updated
+    """
+
+    # Get the product
+    try:
+        # Get the product to update
+        product = Product.objects.get(id=product_id)
+    except Exception as e:
+        messages.success(
+            request, 'There was an error trying to get the product!', extra_tags="danger")
+        print(e)
+        return redirect('products:products_list')
+
+    context = {
+        # "active_icon": "products",
+        "product_status": Product.status.field.choices,
+        "categories": Category.objects.all().filter(status="ACTIVE"),
+        'products' : Product.objects.filter(store=store),
+        'suppliers': Supplier.objects.filter(store=store), 
+        'brands': Brand.objects.filter(store=store),
+        'taxrates': TaxRate.objects.all(),
+        'product':product
+    }
+
+    if request.method == 'POST':
+        try:
+            # Save the POST arguements
+            data = request.POST
+            image = request.FILES['product_image'] 
+
+
+            attributes = {
+                "name": data['name'],
+                "code": data['code'],
+                "category": Category.objects.get(id=data['category']),
+                "supplier": Supplier.objects.get(id=data['supplier']),
+                "brand" : Brand.objects.get(id=data['brand']),
+                "image":image,
+                "description": data['description'],
+                "price": data['price'],
+                "taxrate": TaxRate.objects.get(id=data['taxrate']),
+                "alert_quantity": data['alert_quantity'],
+                "status": data['state'],
+                "store": Store.objects.get(id=store_id),
+
+            }
+
+            # Check if a product with the same attributes exists
+            if Product.objects.filter(**attributes).exists():
+                messages.error(request, 'Product already exists!',
+                               extra_tags="warning")
+                return redirect('products_add')
+
+            # Get the product to update
+            product = Product.objects.filter(
+                id=product_id).update(**attributes)
+
+            product = Product.objects.get(id=product_id)
+
+            messages.success(request, '¡Product: ' + product.name +
+                             ' updated successfully!', extra_tags="success")
+            return redirect('products_list')
+        except Exception as e:
+            messages.success(
+                request, 'There was an error during the update!', extra_tags="danger")
+            print(e)
+            return redirect('products_list')
+
+    return render(request, "posApp/product_update.html", context=context)
+
+
+
+@login_required
+def PurchasesAddView(request):
+    # Check if store ID is in session
+    store_id = request.session.get('store_id')
+    store = Store.objects.get(id=store_id)
+  
+
+    
+
+
+    context = {
+
+        # "product_status": Product.status.field.choices,
+        
+        'products' : Product.objects.filter(store=store),
+        'suppliers': Supplier.objects.filter(store=store), 
+       
+
+  
+    }
+    
+
+    if request.method == 'POST':
+        # Save the POST arguements
+        data = request.POST
+      
+
+        attributes = {
+            "product": Product.objects.get(id=data['product']),
+            "supplier": Supplier.objects.get(id=data['supplier']),
+            'quantity':data['quantity'],
+            "price": data['price'],
+            "store": Store.objects.get(id=store_id),
+
+
+
+         
+        }
+
+        # Check if a product with the same attributes exists
+        # if Product.objects.filter(**attributes).exists():
+        #     messages.error(request, 'Product already exists!',
+        #                    extra_tags="warning")
+        #     return redirect('products_add')
+
+        try:
+            # Create the product
+            new_purchase = Purchase.objects.create(**attributes)
+
+            # If it doesn't exists save it
+            new_purchase.save()
+
+            messages.success(request, 'Purchase created succesfully!', extra_tags="success")
+            return redirect('purchase_list')
+        except Exception as e:
+            messages.success(
+                request, 'There was an error during the creation!', extra_tags="danger")
+            print(e)
+            return redirect('add_purchases')
+
+    return render(request, "posApp/add_purchase.html", context=context)
+
+
+def PurchaseListView(request):
+    # Check if store ID is in session
+    store_id = request.session.get('store_id')
+    store = Store.objects.get(id=store_id)
+  
+    context = {
+
+        "purchases": Purchase.objects.filter(store=store)
+        }
+    return render(request, "posApp/purchase_list.html", context=context)
+
+
+
+
+@login_required
+def CustomerAddView(request):
+    # Check if store ID is in session
+    store_id = request.session.get('store_id')
+    store = Store.objects.get(id=store_id)
+  
+
+    
+
+
+    context = {
+
+        # "product_status": Product.status.field.choices,
+        # "categories": Category.objects.all().filter(status="ACTIVE"),
+        # 'customers' : Customer.objects.filter(store=store),
+        # 'suppliers': Supplier.objects.filter(store=store), 
+        # 'brands': Brand.objects.filter(store=store),
+        # 'taxrates': TaxRate.objects.all()  
+
+
+  
+    }
+    
+
+    if request.method == 'POST':
+        # Save the POST arguements
+        data = request.POST
+
+
+        attributes = {
+            "name": data['name'],
+            "dob": data['dob'],
+            "customer_email": data['customer_email'],
+            "customer_mobile": data['customer_mobile'],
+            "customer_sex": data['customer_sex'],
+            "customer_address": data['customer_address'], 
+            "store": Store.objects.get(id=store_id),
+        }
+
+        # Check if a customer with the same attributes exists
+        if Customer.objects.filter(**attributes).exists():
+            messages.error(request, 'Customer already exists!',
+                           extra_tags="warning")
+            return redirect('add_customer')
+
+        try:
+            # Create the product
+            new_customer = Customer.objects.create(**attributes)
+
+            # If it doesn't exists save it
+            new_customer.save()
+
+            messages.success(request, 'Customer: ' +
+                             attributes["name"] + ' created succesfully!', extra_tags="success")
+            return redirect('add_customer')
+        except Exception as e:
+            messages.success(
+                request, 'There was an error during the creation!', extra_tags="danger")
+            print(e)
+            return redirect('add_customer')
+
+    return render(request, "posApp/add_customer.html", context=context)
+
+
+
+def CustomerListView(request):
+    # Check if store ID is in session
+    store_id = request.session.get('store_id')
+    store = Store.objects.get(id=store_id)
+  
+    context = {
+
+        "customers": Customer.objects.filter(store=store)
+        }
+    return render(request, "posApp/customer_list.html", context=context)
+
+
+def ProductsDeleteView(request, product_id):
+    """
+    Args:
+        product_id : The product's ID that will be deleted
+    """
+    try:
+        # Get the product to delete
+        product = Product.objects.get(id=product_id)
+        product.delete()
+        messages.success(request, '¡Product: ' + product.name +
+                         ' deleted!', extra_tags="success")
+        return redirect('products:products_list')
+    except Exception as e:
+        messages.success(
+            request, 'There was an error during the elimination!', extra_tags="danger")
+        print(e)
+        return redirect('products_list')
+
+
+
+
 
 
 

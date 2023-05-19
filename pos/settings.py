@@ -50,6 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'middleware.login_redirect_middleware.LoginRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'pos.urls'
@@ -144,3 +145,6 @@ EMAIL_HOST_PASSWORD = 'ha$hpa$$word'
 
 #user
 AUTH_USER_MODEL = 'posApp.CustomUser'
+
+LOGIN_URL = 'users:login_view'
+LOGIN_REDIRECT_URL = 'index'

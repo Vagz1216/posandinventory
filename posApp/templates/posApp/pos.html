@@ -6,10 +6,10 @@
 <!-- Specific Page CSS goes HERE  -->
 {% block stylesheets %}
 <!-- Datatables -->
-<link rel="stylesheet" href="{% static 'assets/css/dataTables.bootstrap4.min.css' %}">
+<!-- <link rel="stylesheet" href="{% static 'assets/css/dataTables.bootstrap4.min.css' %}"> -->
 <!--Select2 CSS-->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css">
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css"> -->
 <!--Bootstrap Touchspin-->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-touchspin/4.3.0/jquery.bootstrap-touchspin.css">
 {% endblock stylesheets %}
@@ -92,6 +92,8 @@
 
                     <!--Righ column-->
                     <div class="col-md-3 pr-0">
+                        <a href="{% url 'add_customer' %}" class="btn btn-primary mb-2">Add Customer</a>
+
                         <div class="card card-secondary">
                             <div class="card-header">Sale details</div>
                             <div class="card-body">
@@ -155,7 +157,7 @@
 {% block javascripts %}
 <!-- Datatables -->
 <script src="{% static 'assets/js/jquery.dataTables.min.js'%}"></script>
-<script src="{% static 'assets/js/dataTables.bootstrap4.min.js' %}"></script>
+<!-- <script src="{% static 'assets/js/dataTables.bootstrap4.min.js' %}"></script> -->
 <!--Select2-->
 <script src= "https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" defer> </script>
 <!--Bootstrap Touchspin-->
@@ -497,13 +499,13 @@
             };
             
             // Only allow to send if the payed amount is equal or greater than the total
-            if ($('[name="amount_payed"]').val() < $('[name="grand_total"]').val()) {
+            if (parseInt($('[name="amount_payed"]').val()) < parseFloat($('[name="grand_total"]').val())) {
                 Swal.fire({
                     title: 'Payable Amount is lower that the Grand Total',
                     icon: 'warning',
-                });
-                return false;
-            }
+            });
+            return false;
+            }   
 
             // Agregamos los datos faltantes al objeto sales
             sale.items.customer = $('select[name="customer"]').val();

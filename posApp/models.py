@@ -7,6 +7,7 @@ import uuid
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.models import UserManager
 from django.forms import model_to_dict
+from datetime import date
 
 # Create your models here.
 #1 Currency
@@ -26,6 +27,8 @@ class Currency(models.Model):
 #2 Store
 class Store(models.Model):
     name = models.CharField(max_length=200)
+
+      
     mobile =models.CharField(max_length=20)
     email = models.EmailField()
     address = models.TextField()
@@ -166,12 +169,20 @@ class Brand(models.Model):
 
 #7 Category
 class Category(models.Model):
+    STATUS_CHOICES = (  # new
+        ("ACTIVE", "Active"),
+        ("INACTIVE", "Inactive")
+    )
     name = models.CharField(max_length=200)
     parent_id = models.ForeignKey('self', related_name='children', on_delete=models.CASCADE, blank=True, null=True)
     brand_id = models.ForeignKey(Brand, on_delete=models.CASCADE)
     description = models.TextField(max_length=300)
     brand_image = models.ImageField(upload_to='category') 
-    status = models.IntegerField(default=1) 
+    status = models.CharField(
+        choices=STATUS_CHOICES,
+        max_length=100,
+        verbose_name="Status of the category",default="ACTIVE"
+    ) 
     date_added = models.DateTimeField(default=timezone.now) 
     date_updated = models.DateTimeField(auto_now=True)
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
@@ -182,16 +193,16 @@ class Category(models.Model):
 
 #8 Supplier
 class Supplier(models.Model):
-    sup_name = models.CharField(max_length=200)
-    code_name = models.CharField(max_length=200)
-    sup_mobile = models.CharField(max_length=20)
-    sup_email = models.EmailField()
+    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200)
+    mobile = models.CharField(max_length=20)
+    email = models.EmailField()
     gtin = models.CharField(max_length=14, null=True, blank=True)
-    sup_address = models.TextField()
-    sup_city = models.CharField(max_length=200)
-    sup_state = models.CharField(max_length=200)
-    sup_country = models.CharField(max_length=200)
-    sup_details = models.TextField()
+    address = models.TextField()
+    city = models.CharField(max_length=200)
+    state = models.CharField(max_length=200)
+    country = models.CharField(max_length=200)
+    details = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     store = models.ForeignKey(Store, on_delete=models.CASCADE, null=True, blank=True)
 
@@ -199,7 +210,7 @@ class Supplier(models.Model):
         if not self.pk:
             # If the instance doesn't have a primary key, it's being created for the first time
            
-            self.code_name = self.sup_name[:3].upper() + str(Supplier.objects.count() + 1).zfill(4)
+            self.code_name = self.name[:3].upper() + str(Supplier.objects.count() + 1).zfill(4)
         super().save(*args, **kwargs)
 
 
@@ -207,7 +218,7 @@ class Supplier(models.Model):
 
 
     def __str__(self):
-        return self.sup_name
+        return self.name
 
 #9 TaxRate
 class TaxRate(models.Model):
@@ -225,9 +236,14 @@ class TaxRate(models.Model):
 
     def __str__(self):
         return self.name
+        
 
 #10 Product
 class Product(models.Model):
+    STATUS_CHOICES = (  # new
+        ("ACTIVE", "Active"),
+        ("INACTIVE", "Inactive")
+    )
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=100)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
@@ -240,10 +256,14 @@ class Product(models.Model):
     # tax = models.DecimalField(max_digits=9, decimal_places=2, default=0)
     alert_quantity = models.IntegerField(default=2)
     stock = models.PositiveIntegerField(default=0)
-    status = models.IntegerField(default=1) 
+    status = models.CharField(
+        choices=STATUS_CHOICES,
+        max_length=100,
+        verbose_name="Status of the product", default="ACTIVE"
+    ) 
     date_added = models.DateTimeField(default=timezone.now) 
     date_updated = models.DateTimeField(auto_now=True) 
-    currency = models.ForeignKey(Currency, on_delete=models.CASCADE, default=0)
+    # currency = models.ForeignKey(Currency, on_delete=models.CASCADE, default=0)
     def save(self, *args, **kwargs):
         self = self.price * (self.taxrate / 100)
         super(Product, self).save(*args, **kwargs)
@@ -285,10 +305,16 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name + '-'+ self.code
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            # only set date_added if this is a new object
+            self.date_added = timezone.now()
+        return super(Product, self).save(*args, **kwargs)
 
 #11 Customer
 class Customer(models.Model):
-    customer_name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200)
     dob = models.DateField()
     customer_email = models.EmailField()
     # gtin = models.CharField(max_length=14)
@@ -302,18 +328,32 @@ class Customer(models.Model):
 
     def to_select2(self):
         item = {
-            "label": self.customer_name,
+            "label": self.name,
             "value": self.id
         }
         return item
 
     def __str__(self):
-        return self.customer_name 
+        return self.name 
+    
+    def save(self, *args, **kwargs):
+        if not self.id:
+            # only set date_added if this is a new object
+            self.date_added = timezone.now()
+        return super(Customer, self).save(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        dob_date = datetime.strptime(self.dob, '%Y-%m-%d').date()
+        today = date.today()
+        age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+        self.customer_age = age
+        super().save(*args, **kwargs)
 
 
 
 
 #12 Purchase
+
 class Purchase(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
@@ -327,19 +367,51 @@ class Purchase(models.Model):
     def price_with_currency(self):
         return f"{self.store.currency.symbol_left}{self.price}"
 
+
     def save(self, *args, **kwargs):
+        if not self.pk:  # Check if the object has already been saved
+            self.product.stock += int(self.quantity)  # Convert the stock to an integer
+            self.product.save()
         super().save(*args, **kwargs)
-        self.purchase.product.stock += self.quantity
-        self.purchase.product.save()
+
+
+
 
     def update_purchase_returned(self):
         total_returned = self.purchasereturn_set.aggregate(models.Sum('quantity'))['quantity__sum'] or 0
         self.purchase_returned = total_returned
         self.save()
 
+    def save(self, *args, **kwargs):
+        if not self.id:
+            # only set date_added if this is a new object
+            self.date = timezone.now()
+        return super(Purchase, self).save(*args, **kwargs)
+
+
     def __str__(self):
-        return self.product.name + " : " + self.supplier
-       
+        return self.product.name + " : " + self.supplier.name
+
+#purchase details
+
+class PurchaseDetail(models.Model):
+    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, db_column='product')
+    price = models.FloatField()
+    quantity = models.IntegerField(null=True, blank=True, default=None)
+    tax = models.DecimalField(max_digits=9, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = 'PurchaseDetail'
+
+    def __str__(self) -> str:
+        return "PurchaseDetail ID: " + str(self.id) + " Purchase ID: " + str(self.sale.id) + " Quantity: " + str(self.quantity)
+    
+    # def save(self, *args, **kwargs):
+    #     super().save(*args, **kwargs)
+    #     self.product.stock += self.quantity
+    #     self.product.save()
+
 #13 ReturnPurchase
 class PurchaseReturn(models.Model):
     purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE)
@@ -349,10 +421,10 @@ class PurchaseReturn(models.Model):
     reference_no = models.UUIDField()
 
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.purchase.product.stock -= self.quantity
-        self.purchase.product.save()
+    # def save(self, *args, **kwargs):
+    #     super().save(*args, **kwargs)
+    #     self.purchase.product.stock -= self.return_quantity
+    #     self.purchase.product.save()
 
 
 
@@ -395,15 +467,10 @@ class OrderItem(models.Model):
     quantity = models.IntegerField(default=0, null=True, blank=True)
     date_added = models.DateTimeField(auto_now_add=True)
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.product.stock -= self.quantity
-        self.product.save()
-
-    def delete(self, *args, **kwargs):
-        self.product.stock += self.quantity
-        self.product.save()
-        super().delete(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     super().save(*args, **kwargs)
+    #     self.product.stock -= self.quantity
+    #     self.product.save()
 
 
     
@@ -424,6 +491,7 @@ class Sale(models.Model):
     amount_payed = models.FloatField(default=0)
     amount_change = models.FloatField(default=0)
     store = models.ForeignKey(Store, on_delete=models.CASCADE, null=True, blank=True)
+  
 
     class Meta:
         db_table = 'Sales'
@@ -443,19 +511,41 @@ class Sale(models.Model):
     # def __str__(self):
     #     return self.order + " - " + self.customer
 
+class SaleDetail(models.Model):
+    sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, null=True, blank=True, db_column='sale')
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, db_column='product')
+    price = models.FloatField()
+    quantity = models.PositiveIntegerField()
+    total_detail = models.FloatField()
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        db_table = 'SaleDetails'
+
+    
+    
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Check if the object has already been saved
+            self.product.stock -= self.quantity
+            self.product.save()
+        super().save(*args, **kwargs)
+    
+    def __str__(self) -> str:
+        return "Detail ID: " + str(self.id) + " Sale ID: " + str(self.sale.id) + " Quantity: " + str(self.quantity)
+
 #15 SaleReturns
 
 class SalesReturn(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    sale = models.ForeignKey(Sale, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True)
     returned_items = models.ManyToManyField(Product, through='SalesReturnItem')
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        for item in self.salesreturnitem_set.all():
-            item.product.stock += item.quantity
-            item.product.save()
+    # def save(self, *args, **kwargs):
+    #     super().save(*args, **kwargs)
+    #     for item in self.salesreturnitem_set.all():
+    #         item.product.stock += item.quantity
+    #         item.product.save()
 
 
 class SalesReturnItem(models.Model):
@@ -517,67 +607,58 @@ class PaymentMethod(models.Model):
 
 
 #19 Receipt
-class Receipt(models.Model):
-    order = models.OneToOneField(Order, on_delete=models.CASCADE)
-    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True)
-    products = models.ManyToManyField(Product)
-    prices = models.TextField(default='')
-    tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    category = models.CharField(max_length=50)
-    # Other fields...
+# class Receipt(models.Model):
+#     order = models.OneToOneField(Order, on_delete=models.CASCADE)
+#     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True)
+#     products = models.ManyToManyField(Product)
+#     prices = models.TextField(default='')
+#     tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+#     category = models.CharField(max_length=50)
+#     # Other fields...
 
-    def save(self, *args, **kwargs):
-        if not self.pk:
-            # This is a new instance, so we can fetch the associated Order and Customer objects.
-            order = self.order
-            customer = order.customer
+#     def save(self, *args, **kwargs):
+#         if not self.pk:
+#             # This is a new instance, so we can fetch the associated Order and Customer objects.
+#             order = self.order
+#             customer = order.customer
 
-            # Add the customer to the receipt.
-            self.customer = customer
+#             # Add the customer to the receipt.
+#             self.customer = customer
 
-            # Get all the products associated with the order.
-            products = Product.objects.filter(orderitem__order=order)
+#             # Get all the products associated with the order.
+#             products = Product.objects.filter(orderitem__order=order)
 
-            # Add the products to the receipt.
-            self.products.set(products)
+#             # Add the products to the receipt.
+#             self.products.set(products)
 
-            # Get the prices of each product and store them as a string.
-            prices = []
-            for product in products:
-                price = str(product.price)
-                prices.append(f'{product.name}: {price}')
-            self.prices = ', '.join(prices)
+#             # Get the prices of each product and store them as a string.
+#             prices = []
+#             for product in products:
+#                 price = str(product.price)
+#                 prices.append(f'{product.name}: {price}')
+#             self.prices = ', '.join(prices)
 
-            # Calculate the total tax of the products.
-            total_tax = sum([product.price * (product.taxrate.rate / 100) for product in products])
+#             # Calculate the total tax of the products.
+#             total_tax = sum([product.price * (product.taxrate.rate / 100) for product in products])
 
-            # Add the total tax to the receipt.
-            self.tax = total_tax
+#             # Add the total tax to the receipt.
+#             self.tax = total_tax
 
-            # Get the category of the products.
-            category = products[0].category.name if products else ''
-            self.category = category
+#             # Get the category of the products.
+#             category = products[0].category.name if products else ''
+#             self.category = category
 
-        super().save(*args, **kwargs)
+#         super().save(*args, **kwargs)
 
 
 
-class SaleDetail(models.Model):
-    sale = models.ForeignKey(Sale, on_delete=models.SET_NULL, null=True, blank=True, db_column='sale')
-    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, db_column='product')
-    price = models.FloatField()
-    quantity = models.IntegerField()
-    total_detail = models.FloatField()
 
-    class Meta:
-        db_table = 'SaleDetails'
-
-    def __str__(self) -> str:
-        return "Detail ID: " + str(self.id) + " Sale ID: " + str(self.sale.id) + " Quantity: " + str(self.quantity)
 
 
 
 # User
 
 # userProfile
+
+## implement stock level tracking and sales and purchase returns for the sake of reports
 

@@ -16,15 +16,29 @@
 <!-- Page content  -->
 {% block content %}
 
-    <!--Create new sale-->
+<div class="d-flex justify-content-between">
+    <!-- Go back -->
     <div class="row ml-0 mb-3">
-        <a href="{% url 'pos' %}">
-            <button type="button" class="btn btn-success font-weight-bold">
-                    <i class="fas fa-plus mr-2"></i>
-                    Create new sale
-            </button>
-        </a>
+      <a href="{% url 'index' %}">
+        <button type="button" class="btn btn-info font-weight-bold">
+          <i class="fas fa-long-arrow-alt-left mr-2"></i>
+          Go back
+        </button>
+      </a>
     </div>
+
+  <!-- create a new sale -->
+  
+    <div class="row mr-0 mb-3">
+      <a href="{% url 'pos' %}">
+        <button type="button" class="btn btn-success font-weight-bold">
+          <i class="fas fa-plus mr-2"></i>
+          Create new sale
+        </button>
+      </a>
+    </div>
+  </div>
+    <!--Create new sale-->
 
     <!-- DataTable -->
     <div class="card shadow mb-12">
@@ -39,6 +53,7 @@
                             <th style="width:5%">#</th>
                             <th style="width:15%">ID</th>
                             <th style="width:25%">Date</th>
+                            <!-- <th style="width:25%">Product</th> -->
                             <th style="width:20%">Customer</th>
                             <th class="text-center" style="width:10%">Total</th>
                             <th class="text-center" style="width:5%">Items</th>
@@ -51,13 +66,19 @@
                             <td>{{forloop.counter}}</td>
                             <td>{{s.id}}</td>
                             <td>{{s.date_added}}</td>
-                            <td>{{s.customer.customer_name}}</td>
+                            <!-- <td> {% for sd in saledetails %}
+                                {% if sd.product.name == s.product.name %}
+                                   {{ sd.product.name }}
+                                {% endif %}
+                                {% endfor %}
+                            </td> -->
+                            <td>{{s.customer.name}}</td>
                             <td class="text-right" >{{s.grand_total}}</td>
                             <td class="text-center" >{{s.sum_items}}</td>
                             <td class="text-center">
                                 <!--View-->
                                 <a href="{% url 'sales_details' s.id %}" class="text-decoration-none">
-                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="tooltip" title="Update sale">
+                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="tooltip" title="view sale">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </a>
